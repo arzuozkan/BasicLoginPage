@@ -1,3 +1,4 @@
+<!--template from https://github.com/realpython/discover-flask-->
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/html">
   <head>
@@ -12,10 +13,10 @@
       <div class="hero-body">
         <div class="container">
           <h1 class="title">
-            {{g.username}}'s Profile
+            {{g.user.username}}'s Profile
           </h1>
           <h2 class="subtitle">
-            You are user number #1
+            You are user number {{g.user.ind}}
           </h2>
           </br>
           <form action="" method="post">
