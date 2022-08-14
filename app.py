@@ -4,31 +4,53 @@ from flask import (
     request,
     redirect,
     url_for,
-    g,
     session
 )
-
-
-class User:
-    def __init__(self, ind, username, email, password):
-        self.ind = ind
-        self.username = username
-        self.email = email
-        self.password = password
-
-    def __repr__(self):
-        return f'{self.username}:{self.ind},{self.email},{self.password}'
-
-
-users = []
-users.append(User(ind=1, username="admin", password="password", email="admin@net"))
-users.append(User(ind=2, username="dave", password="secret", email="dave@net"))
-users.append(User(ind=3, username="beca", password="sosecret", email="beca@net"))
+from flask_login import login_user, login_required, current_user, logout_user, LoginManager
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'so-secret-key-and-unique'
+# python -c 'import secrets; print(secrets.token_hex())'
+app.secret_key = '83059b825f5265d8f289ad09c3c5d8155eb6b6f60f0b5dcf762ae8982fce4bf4'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///user_db.sqlite3'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(app)
 
 
+# db user model
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(10), index=False, unique=True, nullable=False)
+    email = db.Column(db.String(20), index=True, unique=True, nullable=False)
+    password = db.Column(db.String(20), unique=False, nullable=False)
+
+    def __init__(self, email, username, password):
+        self.email = email
+        self.username = username
+        self.password = set_password(password)
+
+
+# password storage
+def set_password(password):
+    return generate_password_hash(password, method='sha256')
+
+
+# password validation
+def check_password(self, password):
+    return check_password_hash(self.password, password)
+
+
+def __repr__(self):
+    return '<User {}>'.format(self.username)
+
+
+"""
 @app.before_request
 def before_request():
     g.user = None
@@ -38,6 +60,12 @@ def before_request():
             g.user = user[0]
         else:
             g.user = None
+"""
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 
 @app.route('/')
@@ -47,50 +75,55 @@ def home_page():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error = None
+    if current_user.is_authenticated:
+        return redirect(url_for('view_profile'))
+
     if request.method == 'POST':
-        # error=None
-        # if request.form['username'] != user.username or request.form['password'] != user.password:
-        # error = 'Invalid credentials.Please try again'
-        # else:
-        session.pop('user_id', None)
+        # session.pop('user_id', None)
         username = request.form['username']
         password = request.form['password']
-
-        user = [x for x in users if x.username == username]
-        if user and user[0].password == password:
-            session['user_id'] = user[0].ind
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
             return redirect(url_for('view_profile'))
-
-        return redirect(url_for('login'))
-    return render_template('login.html')
+        error = 'Invalid credentials.Try again!'
+    return render_template('login.html', error=error)
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    error = None
     if request.method == 'POST':
-        users.append(User(ind=len(users) + 1,
-                          username=request.form['username'],
-                          password=request.form['password'],
-                          email=request.form['email']
-                          )
-                     )
-        print([u.__repr__() for u in users])
+        # NEW USER CREATION
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        user = User.query.filter_by(email=email).first()
+        if user:
+            error = 'Email already registered.Try antoher mail address.'
+            return render_template("register.hmtl", error=error)
+        new_user = User(email=email, username=username, password=password)
+        db.session.add(new_user)
+        db.session.commit()
         return redirect(url_for('login'))
-    return render_template('register.html')
+    return render_template('register.html', error=error)
 
 
 @app.route('/user', methods=['GET', 'POST'])
+@login_required
 def view_profile():
     if request.method == 'POST':
         return redirect(url_for('logout'))
-    if not g.user:
-        return redirect(url_for('login'))
-    return render_template('user.html')
+
+    return render_template('user.html', username=current_user.username, id=current_user.id, email=current_user.email)
 
 
 @app.route('/logout')
+@login_required
 def logout():
-    session.pop('user_id', None)
+    logout_user()
+    # session.pop('user_id', None)
     return redirect(url_for('login'))
 
 
@@ -100,4 +133,5 @@ def update_profile():
 
 
 if __name__ == '__main__':
+    db.create_all()
     app.run(debug=True)

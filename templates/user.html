@@ -13,17 +13,19 @@
       <div class="hero-body">
         <div class="container">
           <h1 class="title">
-            {{g.user.username}}'s Profile
+            {{username}}'s Profile
           </h1>
           <h2 class="subtitle">
-            You are user number {{g.user.ind}}
+            You are user number {{id}}
+            <br>
+            Email address : {{email}}
           </h2>
           </br>
+          {% if current_user.is_authenticated %}
           <form action="" method="post">
              <input class="btn btn-default" type="submit" value="Logout">
           </form>
-
-
+          {% endif %}
         </div>
       </div>
     </section>
