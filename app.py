@@ -3,8 +3,7 @@ from flask import (
     render_template,
     request,
     redirect,
-    url_for,
-    session
+    url_for
 )
 from flask_login import login_user, login_required, current_user, logout_user, LoginManager
 from flask_sqlalchemy import SQLAlchemy
@@ -101,8 +100,8 @@ def register():
         password = request.form['password']
         user = User.query.filter_by(email=email).first()
         if user:
-            error = 'Email already registered.Try antoher mail address.'
-            return render_template("register.hmtl", error=error)
+            error = 'Email already registered.Try another mail address.'
+            return render_template("register.html", error=error)
         new_user = User(email=email, username=username, password=password)
         db.session.add(new_user)
         db.session.commit()
