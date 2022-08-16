@@ -69,7 +69,9 @@ def load_user(user_id):
 
 @app.route('/')
 def home_page():
-    return redirect(url_for('view_profile'))
+    if current_user.is_authenticated:
+        return redirect(url_for('view_profile'))
+    return "<h1>Welcome anonymous user profile.</h1><br> Please <a href=/login>login</a> to see your content"
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -79,7 +81,7 @@ def login():
         return redirect(url_for('view_profile'))
 
     if request.method == 'POST':
-        # session.pop('user_id', None)
+        logout_user()
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
@@ -98,11 +100,15 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        user = User.query.filter_by(email=email).first()
-        if user:
+        email_check = User.query.filter_by(email=email).first()
+        user_check = User.query.filter_by(username=username).first()
+        if email_check:
             error = 'Email already registered.Try another mail address.'
             return render_template("register.html", error=error)
-        new_user = User(email=email, username=username, password=password)
+        if user_check:
+            error = 'Username already taken.Try different.'
+            return render_template("register.html", error=error)
+        new_user = User(username=username,email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
@@ -132,5 +138,6 @@ def update_profile():
 
 
 if __name__ == '__main__':
-    db.create_all()
-    app.run(debug=True)
+    from waitress import serve
+
+    serve(app, host='127.0.0.1', port=8080)
