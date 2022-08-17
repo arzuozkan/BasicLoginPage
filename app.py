@@ -1,65 +1,13 @@
 from flask import (
-    Flask,
     render_template,
     request,
     redirect,
     url_for
 )
-from flask_login import login_user, login_required, current_user, logout_user, LoginManager
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
-
-app = Flask(__name__)
-# python -c 'import secrets; print(secrets.token_hex())'
-app.secret_key = '83059b825f5265d8f289ad09c3c5d8155eb6b6f60f0b5dcf762ae8982fce4bf4'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///user_db.sqlite3'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-login_manager = LoginManager()
-login_manager.login_view = 'login'
-login_manager.init_app(app)
-
-
-# db user model
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    username = db.Column(db.String(10), index=False, unique=True, nullable=False)
-    email = db.Column(db.String(20), index=True, unique=True, nullable=False)
-    password = db.Column(db.String(20), unique=False, nullable=False)
-
-    def __init__(self, email, username, password):
-        self.email = email
-        self.username = username
-        self.password = set_password(password)
-
-
-# password storage
-def set_password(password):
-    return generate_password_hash(password, method='sha256')
-
-
-# password validation
-def check_password(self, password):
-    return check_password_hash(self.password, password)
-
-
-def __repr__(self):
-    return '<User {}>'.format(self.username)
-
-
-"""
-@app.before_request
-def before_request():
-    g.user = None
-    if 'user_id' in session:
-        user = [x for x in users if x.ind == session['user_id']]
-        if user:
-            g.user = user[0]
-        else:
-            g.user = None
-"""
+from flask_login import login_user, login_required, current_user, logout_user
+from werkzeug.security import check_password_hash
+from user_model import User
+from __init__ import app, login_manager, db
 
 
 @login_manager.user_loader
@@ -105,13 +53,18 @@ def register():
         if email_check:
             error = 'Email already registered.Try another mail address.'
             return render_template("register.html", error=error)
-        if user_check:
+        elif user_check:
             error = 'Username already taken.Try different.'
             return render_template("register.html", error=error)
-        new_user = User(username=username,email=email, password=password)
+
+        if not (username and email and password):
+            error = 'Please fill all the input field'
+            return render_template('register.html', error=error)
+        new_user = User(username=username, email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
+
     return render_template('register.html', error=error)
 
 
@@ -138,6 +91,7 @@ def update_profile():
 
 
 if __name__ == '__main__':
-    from waitress import serve
+    app.run(debug=True)
+    # from waitress import serve
 
-    serve(app, host='127.0.0.1', port=8080)
+    # serve(app, host='127.0.0.1', port=5000)
